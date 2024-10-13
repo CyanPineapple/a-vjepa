@@ -184,6 +184,7 @@ def main(args_eval, resume_preempt=False):
 
     # POLO: init v2t model
     from transformers import GPT2LMHeadModel
+    from src.models.video_caption_model import VideoCaptioningModel
     gpt_decoder = GPT2LMHeadModel.from_pretrained('gpt2')
     sd_hf = gpt_decoder.state_dict()
     for k,v in sd_hf.items():
