@@ -180,7 +180,13 @@ def main(args_eval, resume_preempt=False):
     for p in encoder.parameters():
         p.requires_grad = False
 
-
+    # -- init classifier
+    classifier = AttentiveClassifier(
+        embed_dim=encoder.embed_dim,
+        num_heads=encoder.num_heads,
+        depth=1,
+        num_classes=num_classes,
+    ).to(device)
 
     # POLO: init v2t model
     from transformers import GPT2LMHeadModel
