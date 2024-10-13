@@ -6,7 +6,7 @@ resume_checkpoint: false
 data:
   dataset_train: /home/bge/a-vjepa/eval_test.csv
   dataset_val: /home/bge/a-vjepa/eval_test.csv
-  dataset_type: VideoDataset
+  dataset_type: VideoTextDataset
   num_classes: 400
   frames_per_clip: 16
   num_segments: 8

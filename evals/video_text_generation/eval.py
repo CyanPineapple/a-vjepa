@@ -91,7 +91,7 @@ def main(args_eval, resume_preempt=False):
     args_data = args_eval.get('data')
     train_data_path = [args_data.get('dataset_train')]
     val_data_path = [args_data.get('dataset_val')]
-    dataset_type = args_data.get('dataset_type', 'VideoDataset')
+    dataset_type = args_data.get('dataset_type', 'VideoTextDataset')
     num_classes = args_data.get('num_classes')
     eval_num_segments = args_data.get('num_segments', 1)
     eval_frames_per_clip = args_data.get('frames_per_clip', 16)
@@ -175,16 +175,24 @@ def main(args_eval, resume_preempt=False):
             attend_across_segments=attend_across_segments
         ).to(device)
     encoder.eval()
+
+
     for p in encoder.parameters():
         p.requires_grad = False
 
-    # -- init classifier
-    classifier = AttentiveClassifier(
-        embed_dim=encoder.embed_dim,
-        num_heads=encoder.num_heads,
-        depth=1,
-        num_classes=num_classes,
-    ).to(device)
+
+
+    # POLO: init v2t model
+    from transformers import GPT2LMHeadModel
+    gpt_decoder = GPT2LMHeadModel.from_pretrained('gpt2')
+    sd_hf = model_hf.state_dict()
+    for k,v in sd_hf.items():
+        print(k, v.shape)
+    v2t_model = VideoCaptioningModel(encoder, gpt_decoder)
+
+
+    # POLO: rewrite data loading. 
+    # approach 1: generate csv file then reuse jepa's data loader
 
     train_loader = make_dataloader(
         dataset_type=dataset_type,
@@ -200,6 +208,7 @@ def main(args_eval, resume_preempt=False):
         world_size=world_size,
         rank=rank,
         training=True)
+
     val_loader = make_dataloader(
         dataset_type=dataset_type,
         root_path=val_data_path,
@@ -444,7 +453,7 @@ def make_dataloader(
     batch_size,
     world_size,
     rank,
-    dataset_type='VideoDataset',
+    dataset_type='VideoTextDataset',
     resolution=224,
     frames_per_clip=16,
     frame_step=4,
