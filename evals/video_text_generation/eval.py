@@ -191,8 +191,12 @@ def main(args_eval, resume_preempt=False):
     # POLO: init v2t model
     from transformers import GPT2LMHeadModel
     from src.models.video_caption_model import VideoCaptioningModel
-    gpt_decoder = GPT2LMHeadModel.from_pretrained('gpt2')
-    v2t_model = VideoCaptioningModel(encoder, gpt_decoder)
+    decoder = GPT2LMHeadModel.from_pretrained('openai-community/gpt2')
+    
+    # sd_hf = v2t_model.state_dict()
+    # for k, v in sd_hf.items():
+    #     pass
+        # print(k, v.shape)
 
 
     # POLO: rewrite data loading. 
@@ -232,7 +236,7 @@ def main(args_eval, resume_preempt=False):
 
     # -- optimizer and scheduler
     optimizer, scaler, scheduler, wd_scheduler = init_opt(
-        classifier=classifier,
+        decoder=decoder,
         wd=wd,
         start_lr=start_lr,
         ref_lr=lr,
@@ -279,7 +283,7 @@ def main(args_eval, resume_preempt=False):
             attend_across_segments=attend_across_segments,
             num_spatial_views=1,
             encoder=encoder,
-            classifier=classifier,
+            decoder=decoder,
             scaler=scaler,
             optimizer=optimizer,
             scheduler=scheduler,
@@ -294,7 +298,7 @@ def main(args_eval, resume_preempt=False):
             attend_across_segments=attend_across_segments,
             num_spatial_views=eval_num_views_per_segment,
             encoder=encoder,
-            classifier=classifier,
+            decoder=decoder,
             scaler=scaler,
             optimizer=optimizer,
             scheduler=scheduler,
@@ -312,7 +316,7 @@ def run_one_epoch(
     device,
     training,
     encoder,
-    classifier,
+    decoder,
     scaler,
     optimizer,
     scheduler,
@@ -324,7 +328,7 @@ def run_one_epoch(
     attend_across_segments,
 ):
 
-    classifier.train(mode=training)
+    # classifier.train(mode=training)
     criterion = torch.nn.CrossEntropyLoss()
     top1_meter = AverageMeter()
     for itr, data in enumerate(data_loader):
@@ -341,28 +345,37 @@ def run_one_epoch(
                 for di in data[0]  # iterate over temporal index of clip
             ]
             clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
-            labels = data[1].to(device)
-            batch_size = len(labels)
+
+            # TODO: concat encoder and decoder
+            from transformers import VisionEncoderDecoderModel, VisionTransformer
+            model = VisionTransformer.from_pretrained("nielsr/vit-large-patch16-v-jepa")
+            # model = VisionEncoderDecoderModel.from_encoder_decoder_pretrained(
+                # "nielsr/vit-large-patch16-v-jepa", "google-bert/bert-base-uncased")
+
+            # labels = data[1].to(device)
+            # batch_size = len(labels)
 
             # Forward and prediction
-            with torch.no_grad():
-                outputs = encoder(clips, clip_indices)
-                if not training:
-                    if attend_across_segments:
-                        outputs = [classifier(o) for o in outputs]
-                    else:
-                        outputs = [[classifier(ost) for ost in os] for os in outputs]
-            if training:
-                if attend_across_segments:
-                    outputs = [classifier(o) for o in outputs]
-                else:
-                    outputs = [[classifier(ost) for ost in os] for os in outputs]
+            # with torch.no_grad():
+            #     outputs = encoder(clips, clip_indices)
+            #     if not training:
+            #         # compute outputs
+            #         if attend_across_segments:
+            #             outputs = [classifier(o) for o in outputs]
+            #         else:
+            #             outputs = [[classifier(ost) for ost in os] for os in outputs]
+            # if training:
+            #     if attend_across_segments:
+            #         outputs = [classifier(o) for o in outputs]
+            #     else:
+            #         outputs = [[classifier(ost) for ost in os] for os in outputs]
 
         # Compute loss
         if attend_across_segments:
             loss = sum([criterion(o, labels) for o in outputs]) / len(outputs)
         else:
             loss = sum([sum([criterion(ost, labels) for ost in os]) for os in outputs]) / len(outputs) / len(outputs[0])
+
         with torch.no_grad():
             if attend_across_segments:
                 outputs = sum([F.softmax(o, dim=1) for o in outputs]) / len(outputs)
@@ -533,7 +546,7 @@ def init_model(
 
 
 def init_opt(
-    classifier,
+    decoder,
     iterations_per_epoch,
     start_lr,
     ref_lr,
@@ -544,20 +557,20 @@ def init_opt(
     final_lr=0.0,
     use_bfloat16=False
 ):
-    param_groups = [
-        {
-            'params': (p for n, p in classifier.named_parameters()
-                       if ('bias' not in n) and (len(p.shape) != 1))
-        }, {
-            'params': (p for n, p in classifier.named_parameters()
-                       if ('bias' in n) or (len(p.shape) == 1)),
-            'WD_exclude': True,
-            'weight_decay': 0
-        }
-    ]
+    # param_groups = [
+    #     {
+    #         'params': (p for n, p in classifier.named_parameters()
+    #                    if ('bias' not in n) and (len(p.shape) != 1))
+    #     }, {
+    #         'params': (p for n, p in classifier.named_parameters()
+    #                    if ('bias' in n) or (len(p.shape) == 1)),
+    #         'WD_exclude': True,
+    #         'weight_decay': 0
+    #     }
+    # ]
 
     logger.info('Using AdamW')
-    optimizer = torch.optim.AdamW(param_groups)
+    optimizer = torch.optim.AdamW(decoder.parameters())
     scheduler = WarmupCosineSchedule(
         optimizer,
         warmup_steps=int(warmup*iterations_per_epoch),
