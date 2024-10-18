@@ -4,8 +4,8 @@ tag: k400-16x8x3
 eval_name: mmenc_classification_frozen
 resume_checkpoint: false
 data:
-  dataset_train: /your_path_to_kinetics400_train_csv_file_index.csv
-  dataset_val: /your_path_to_kinetics400_val_csv_file_index.csv
+  dataset_train: /home/bge/a-vjepa/eval_test.csv
+  dataset_val: /home/bge/a-vjepa/eval_test.csv
   dataset_type: MmencDataset
   num_classes: 400
   frames_per_clip: 16
@@ -34,6 +34,6 @@ pretrain:
   tight_silu: false
   use_sdpa: true
   patch_size: 16
-  folder: /your_absolute_file_path_to_directory_where_pretrained_models_are_contained/
-  checkpoint: jepa-latest.pth.tar  # name of pretrained model file inside folder
+  folder: /home/bge/a-vjepa/ckpt
+  checkpoint: vitl16.pth.tar
   write_tag: jepa
