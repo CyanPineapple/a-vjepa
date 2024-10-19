@@ -327,6 +327,22 @@ def run_one_epoch(
                 [dij.to(device, non_blocking=True) for dij in di]  # iterate over spatial views of clip
                 for di in data[0]  # iterate over temporal index of clip
             ]
+            # load clap encoder and gen audio enbeddings
+            import numpy as np
+            import librosa
+            import torch
+            import laion_clap
+
+            model = laion_clap.CLAP_Module(enable_fusion=False)
+            model.load_ckpt() # download the default pretrained checkpoint.
+            # Directly get audio embeddings from audio files
+            audio_file = list(data[3])
+            print(audio_file)
+            audio_embeddings = model.get_audio_embedding_from_filelist(x = audio_file, use_tensor=True)
+            print(audio_embeddings[:,-20:])
+            print(audio_embeddings.shape)
+
+
             clip_indices = [d.to(device, non_blocking=True) for d in data[2]]
             labels = data[1].to(device)
             batch_size = len(labels)
@@ -334,6 +350,13 @@ def run_one_epoch(
             # Forward and prediction
             with torch.no_grad():
                 outputs = encoder(clips, clip_indices)
+                print(outputs.shape)
+                print(audio_embeddings.shape)
+                # concatenate audio embeddings with video embeddings
+                outputs = torch.cat([outputs, audio_embeddings], dim=1)
+                print(outputs.shape)
+
+
                 if not training:
                     if attend_across_segments:
                         outputs = [classifier(o) for o in outputs]

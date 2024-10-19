@@ -124,6 +124,7 @@ class MmencDataset(torch.utils.data.Dataset):
 
         # Load video paths and labels
         samples, labels = [], []
+        audios = []
         self.num_samples_per_dataset = []
         for data_path in self.data_paths:
 
@@ -131,6 +132,7 @@ class MmencDataset(torch.utils.data.Dataset):
                 data = pd.read_csv(data_path, header=None, delimiter=" ")
                 samples += list(data.values[:, 0])
                 labels += list(data.values[:, 1])
+                audios = list(data.values[:, 2])
                 num_samples = len(data)
                 self.num_samples_per_dataset.append(num_samples)
 
@@ -152,6 +154,7 @@ class MmencDataset(torch.utils.data.Dataset):
 
         self.samples = samples
         self.labels = labels
+        self.audios = audios
 
     def __getitem__(self, index):
         sample = self.samples[index]
@@ -167,6 +170,7 @@ class MmencDataset(torch.utils.data.Dataset):
 
         # Label/annotations for video
         label = self.labels[index]
+        audio = self.audios[index]
 
         def split_into_clips(video):
             """ Split video into a list of clips """
@@ -181,7 +185,7 @@ class MmencDataset(torch.utils.data.Dataset):
         if self.transform is not None:
             buffer = [self.transform(clip) for clip in buffer]
 
-        return buffer, label, clip_indices
+        return buffer, label, clip_indices, audio
 
     def loadvideo_decord(self, sample):
         """ Load video content using Decord """
