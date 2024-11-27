@@ -179,6 +179,12 @@ class VisionTransformerPredictor(nn.Module):
         :params masks_tgt: indices of target tokens in input
         """
 
+        print(f"ctxt: {ctxt.shape}")
+        print(f"tgt: {tgt.shape}")
+        print(f"masks_ctxt: {masks_ctxt.shape}")
+        print(f"masks_tgt: {masks_tgt.shape}")
+
+
         assert (masks_ctxt is not None) and (masks_tgt is not None), 'Cannot run predictor without mask indices'
 
         if not isinstance(masks_ctxt, list):
@@ -189,9 +195,11 @@ class VisionTransformerPredictor(nn.Module):
 
         # Batch Size
         B = len(ctxt) // len(masks_ctxt)
+        print(f"B: {B}")
 
         # Map context tokens to pedictor dimensions
         x = self.predictor_embed(ctxt)
+        print(f"x: {x.shape}")
         _, N_ctxt, D = x.shape
 
         # Add positional embedding to ctxt tokens
@@ -205,9 +213,13 @@ class VisionTransformerPredictor(nn.Module):
             pred_tokens = self.diffusion(pred_tokens)
         else:
             mask_index = mask_index % self.num_mask_tokens
+            print(f"mask_index: {mask_index}")
             pred_tokens = self.mask_tokens[mask_index]
+            print(f"pred_tokens: {pred_tokens.shape}")
             pred_tokens = pred_tokens.repeat(B, self.num_patches, 1)
+            print(f"pred_tokens: {pred_tokens.shape}")
             pred_tokens = apply_masks(pred_tokens, masks_tgt)
+            print(f"pred_tokens: {pred_tokens.shape}")
 
         # Add positional embedding to target tokens
         if self.predictor_pos_embed is not None:
@@ -219,6 +231,7 @@ class VisionTransformerPredictor(nn.Module):
         # Concatenate context & target tokens
         x = x.repeat(len(masks_tgt), 1, 1)
         x = torch.cat([x, pred_tokens], dim=1)
+        print(f"x: {x.shape}")
 
         # FIXME: this implementation currently assumes masks_ctxt and masks_tgt
         # are alligned 1:1 (ok with MultiMask wrapper on predictor but
@@ -236,6 +249,7 @@ class VisionTransformerPredictor(nn.Module):
         x = x[:, N_ctxt:]
         x = self.predictor_proj(x)
 
+        print(f"x2: {x.shape}")
         return x
 
 
