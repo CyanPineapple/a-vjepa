@@ -243,13 +243,17 @@ class VisionTransformerPredictor(nn.Module):
         # Fwd prop
         for blk in self.predictor_blocks:
             x = blk(x, mask=masks)
+        print(f"x1: {x.shape}")
         x = self.predictor_norm(x)
+        print(f"x2: {x.shape}")
 
         # Return output corresponding to target tokens
+        print(f"N_ctxt: {N_ctxt}")
         x = x[:, N_ctxt:]
+        print(f"x3: {x.shape}")
         x = self.predictor_proj(x)
 
-        print(f"x2: {x.shape}")
+        print(f"x4: {x.shape}")
         return x
 
 
